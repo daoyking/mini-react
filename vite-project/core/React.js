@@ -7,7 +7,7 @@
 // };
 
 // 创建节点
-function createTextNode(type, props) {
+function createTextNode(type) {
 	return {
 		type: "text_element",
 		props: {
@@ -32,9 +32,11 @@ function createElement(type, props, ...children) {
 		props: {
 			...props,
 			children: children.map((child) => {
-				return typeof child !== "string"
-					? child
-					: createTextNode(child);
+				console.log("11", child);
+				const isTextNode =
+					typeof child === "string" || typeof child === "number";
+				console.log("isTextNode", isTextNode);
+				return isTextNode ? createTextNode(child) : child;
 			}),
 		},
 	};
@@ -47,6 +49,8 @@ function render(el, container) {
 			children: [el],
 		},
 	};
+
+	root = nextWorkOfUnit;
 	// // 创建节点
 	// const dom =
 	// 	el.type === "text_element"
@@ -69,6 +73,7 @@ function render(el, container) {
 
 // let taskId = 1;
 let nextWorkOfUnit = null;
+let root = null;
 function workLoop(deadline) {
 	// taskId++;
 
@@ -79,7 +84,32 @@ function workLoop(deadline) {
 		// console.log(`taskId: ${taskId} run task`);
 		shouldYield = deadline.timeRemaining() < 1;
 	}
+
+	if (!nextWorkOfUnit && root) {
+		commitRoot();
+	}
 	requestIdleCallback(workLoop);
+}
+
+function commitRoot() {
+	commitWork(root.child);
+	root = null;
+}
+
+function commitWork(fiber) {
+	if (!fiber) {
+		return;
+	}
+	let domParent = fiber.parent;
+	// 找到最近的父节点
+	while (!domParent.dom) {
+		domParent = domParent.parent;
+	}
+	if (fiber.dom) {
+		domParent.dom.append(fiber.dom);
+	}
+	commitWork(fiber.child);
+	commitWork(fiber.sibling);
 }
 
 function createDom(type) {
@@ -96,8 +126,7 @@ function updateProps(dom, prop) {
 	});
 }
 
-function initChild(fiber) {
-	const children = fiber.props.children;
+function initChild(fiber, children) {
 	let prevChild = null;
 	children.forEach((child, index) => {
 		const newFiber = {
@@ -118,25 +147,37 @@ function initChild(fiber) {
 }
 
 function performWorkOfUnit(fiber) {
-	if (!fiber.dom) {
-		// 1.创建dom
-		const dom = (fiber.dom = createDom(fiber.type));
-		fiber.parent.dom.append(dom);
-		// 2.设置prop
-		updateProps(dom, fiber.props);
+	console.log("performWorkOfUnit", fiber);
+	const isFunctionComponent = typeof fiber.type === "function";
+
+	if (!isFunctionComponent) {
+		if (!fiber.dom) {
+			// 1.创建dom
+			const dom = (fiber.dom = createDom(fiber.type));
+			// fiber.parent.dom.append(dom);
+			// 2.设置prop
+			updateProps(dom, fiber.props);
+		}
 	}
+	const children = isFunctionComponent
+		? [fiber.type(fiber.props)]
+		: fiber.props.children;
 	// 3.创建链表，设置指针
-	initChild(fiber);
+	initChild(fiber, children);
 	// 4.返回下一个需要执行的任务
 	if (fiber.child) {
 		return fiber.child;
 	}
 
-	if (fiber.sibling) {
-		return fiber.sibling;
+	let nextFiber = fiber;
+	while (nextFiber) {
+		if (nextFiber.sibling) {
+			return nextFiber.sibling;
+		}
+		nextFiber = nextFiber.parent;
 	}
 
-	return fiber.parent?.sibling;
+	// return fiber.parent?.sibling;
 }
 
 requestIdleCallback(workLoop);

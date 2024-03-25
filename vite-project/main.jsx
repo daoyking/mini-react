@@ -1,4 +1,4 @@
-console.log("hello, main");
+// console.log("hello, main");
 
 // const dom = document.createElement("div");
 // dom.id = "app";
@@ -27,6 +27,7 @@ console.log("hello, main");
 // ReactDOM.render(<App />, document.querySelector("#root"));
 
 import ReactDOM from "./core/ReactDOM.js";
+import React from "./core/React.js";
 import App from "./App.jsx";
 
-ReactDOM.createRoot(document.querySelector("#root")).render(App);
+ReactDOM.createRoot(document.querySelector("#root")).render(<App></App>);
