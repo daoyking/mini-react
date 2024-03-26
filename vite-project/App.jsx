@@ -2,7 +2,16 @@ import React from "./core/React.js";
 // const App = React.createElement("div", { id: "app" }, "Hello-", "Mini-React!");
 
 function Counter({ num }) {
-	return <div>counter: {num}</div>;
+	const handleClick = () => {
+		console.log("handleClick");
+	};
+
+	return (
+		<div>
+			counter: {num}
+			<button onClick={handleClick}>click me</button>
+		</div>
+	);
 }
 
 function Countiner() {
@@ -15,7 +24,7 @@ function App() {
 			hello-mini-react
 			{/* <Countiner></Countiner> */}
 			<Counter num={10}></Counter>
-			<Counter num={20}></Counter>
+			{/* <Counter num={20}></Counter> */}
 		</div>
 	);
 }

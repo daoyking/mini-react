@@ -1,11 +1,3 @@
-// const elText = {
-// 	type: "text_element",
-// 	props: {
-// 		nodeValue: "Hello, main.js!",
-// 		children: [],
-// 	},
-// };
-
 // 创建节点
 function createTextNode(type) {
 	return {
@@ -17,14 +9,6 @@ function createTextNode(type) {
 	};
 }
 
-// const el = {
-// 	type: "div",
-// 	props: {
-// 		id: "app",
-// 		children: [elText],
-// 	},
-// };
-
 // 动态创建元素
 function createElement(type, props, ...children) {
 	return {
@@ -32,10 +16,8 @@ function createElement(type, props, ...children) {
 		props: {
 			...props,
 			children: children.map((child) => {
-				console.log("11", child);
 				const isTextNode =
 					typeof child === "string" || typeof child === "number";
-				console.log("isTextNode", isTextNode);
 				return isTextNode ? createTextNode(child) : child;
 			}),
 		},
@@ -49,39 +31,17 @@ function render(el, container) {
 			children: [el],
 		},
 	};
-
 	root = nextWorkOfUnit;
-	// // 创建节点
-	// const dom =
-	// 	el.type === "text_element"
-	// 		? document.createTextNode("")
-	// 		: document.createElement(el.type);
-	// // 设置属性
-	// Object.keys(el.props).forEach((key) => {
-	// 	if (key !== "children") {
-	// 		dom[key] = el.props[key];
-	// 	}
-	// });
-	// // 设置子节点
-	// const children = el.props.children;
-	// children.forEach((child) => {
-	// 	render(child, dom);
-	// });
-	// // 递归渲染子节点
-	// container.append(dom);
 }
 
-// let taskId = 1;
 let nextWorkOfUnit = null;
 let root = null;
+let currantRoot = null;
 function workLoop(deadline) {
-	// taskId++;
-
 	let shouldYield = false;
 	while (!shouldYield && nextWorkOfUnit) {
 		nextWorkOfUnit = performWorkOfUnit(nextWorkOfUnit);
 		// 执行任务
-		// console.log(`taskId: ${taskId} run task`);
 		shouldYield = deadline.timeRemaining() < 1;
 	}
 
@@ -93,6 +53,7 @@ function workLoop(deadline) {
 
 function commitRoot() {
 	commitWork(root.child);
+	currantRoot = root;
 	root = null;
 }
 
@@ -121,7 +82,12 @@ function createDom(type) {
 function updateProps(dom, prop) {
 	Object.keys(prop).forEach((key) => {
 		if (key !== "children") {
-			dom[key] = prop[key];
+			if (key.startsWith("on")) {
+				const event = key.slice(2).toLocaleLowerCase();
+				dom.addEventListener(event, prop[key]);
+			} else {
+				dom[key] = prop[key];
+			}
 		}
 	});
 }
@@ -146,25 +112,29 @@ function initChild(fiber, children) {
 	});
 }
 
+function updateFunctionComp(fiber) {
+	const children = [fiber.type(fiber.props)];
+	initChild(fiber, children);
+}
+
+function updateHostComp(fiber) {
+	if (!fiber.dom) {
+		const dom = (fiber.dom = createDom(fiber.type));
+		updateProps(dom, fiber.props);
+	}
+
+	const children = fiber.props.children;
+	initChild(fiber, children);
+}
+
 function performWorkOfUnit(fiber) {
-	console.log("performWorkOfUnit", fiber);
 	const isFunctionComponent = typeof fiber.type === "function";
 
-	if (!isFunctionComponent) {
-		if (!fiber.dom) {
-			// 1.创建dom
-			const dom = (fiber.dom = createDom(fiber.type));
-			// fiber.parent.dom.append(dom);
-			// 2.设置prop
-			updateProps(dom, fiber.props);
-		}
+	if (isFunctionComponent) {
+		updateFunctionComp(fiber);
+	} else {
+		updateHostComp(fiber);
 	}
-	const children = isFunctionComponent
-		? [fiber.type(fiber.props)]
-		: fiber.props.children;
-	// 3.创建链表，设置指针
-	initChild(fiber, children);
-	// 4.返回下一个需要执行的任务
 	if (fiber.child) {
 		return fiber.child;
 	}
@@ -176,8 +146,6 @@ function performWorkOfUnit(fiber) {
 		}
 		nextFiber = nextFiber.parent;
 	}
-
-	// return fiber.parent?.sibling;
 }
 
 requestIdleCallback(workLoop);
