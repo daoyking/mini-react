@@ -1,14 +1,22 @@
 import React from "./core/React.js";
 // const App = React.createElement("div", { id: "app" }, "Hello-", "Mini-React!");
 
+let count = 1;
+let props = {
+	id: "counter",
+};
 function Counter({ num }) {
-	const handleClick = () => {
+	console.log("counter");
+	function handleClick() {
 		console.log("handleClick");
-	};
+		count++;
+		props = {};
+		React.update();
+	}
 
 	return (
-		<div>
-			counter: {num}
+		<div {...props}>
+			counter: {count}
 			<button onClick={handleClick}>click me</button>
 		</div>
 	);
