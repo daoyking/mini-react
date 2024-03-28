@@ -18,6 +18,7 @@ function createElement(type, props, ...children) {
 			children: children.map((child) => {
 				const isTextNode =
 					typeof child === "string" || typeof child === "number";
+				console.log(child, "child");
 				return isTextNode ? createTextNode(child) : child;
 			}),
 		},
@@ -35,21 +36,35 @@ function render(el, container) {
 }
 
 function update() {
-	wipRoot = {
-		dom: currantRoot.dom,
-		props: currantRoot.props,
-		alternate: currantRoot,
+	let currentFiber = wipFiber;
+
+	return () => {
+		wipRoot = {
+			...currentFiber,
+			alternate: currentFiber,
+		};
+		// wipRoot = {
+		// 	dom: currentRoot.dom,
+		// 	props: currentRoot.props,
+		// 	alternate: currentRoot,
+		// };
+		nextWorkOfUnit = wipRoot;
 	};
-	nextWorkOfUnit = wipRoot;
 }
 
 let nextWorkOfUnit = null;
 let wipRoot = null;
-let currantRoot = null;
+let currentRoot = null;
+let wipFiber = null;
 function workLoop(deadline) {
 	let shouldYield = false;
 	while (!shouldYield && nextWorkOfUnit) {
 		nextWorkOfUnit = performWorkOfUnit(nextWorkOfUnit);
+
+		if (wipRoot?.sibling?.type === nextWorkOfUnit?.type) {
+			nextWorkOfUnit = undefined;
+		}
+
 		// 执行任务
 		shouldYield = deadline.timeRemaining() < 1;
 	}
@@ -61,9 +76,24 @@ function workLoop(deadline) {
 }
 
 function commitRoot() {
+	deletions.forEach(commitDeletion);
+
 	commitWork(wipRoot.child);
-	currantRoot = wipRoot;
+	currentRoot = wipRoot;
 	wipRoot = null;
+	deletions = [];
+}
+
+function commitDeletion(fiber) {
+	if (fiber.dom) {
+		let domParent = fiber.parent;
+		while (!domParent.dom) {
+			domParent = domParent.parent;
+		}
+		domParent.dom.removeChild(fiber.dom);
+	} else {
+		commitDeletion(fiber.child);
+	}
 }
 
 function commitWork(fiber) {
@@ -75,13 +105,6 @@ function commitWork(fiber) {
 	while (!domParent.dom) {
 		domParent = domParent.parent;
 	}
-
-	// if (fiber.effectTag === "update") {
-	// 	console.log("fiber.effectTag", fiber);
-	// 	updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
-	// } else if (fiber.effectTag === "placement") {
-	// 	fiber.dom && domParent.dom.append(fiber.dom);
-	// }
 
 	switch (fiber.effectTag) {
 		case "update":
@@ -128,6 +151,7 @@ function updateProps(dom, nextProps, prevProps) {
 	});
 }
 
+let deletions = [];
 function initChild(fiber, children) {
 	let prevChild = null;
 	let oldFiber = fiber.alternate?.child;
@@ -148,31 +172,45 @@ function initChild(fiber, children) {
 			};
 		} else {
 			// placement
-			newFiber = {
-				dom: null,
-				props: child.props,
-				type: child.type,
-				parent: fiber,
-				child: null,
-				sibling: null,
-				effectTag: "placement",
-			};
+			if (child) {
+				newFiber = {
+					dom: null,
+					props: child.props,
+					type: child.type,
+					parent: fiber,
+					child: null,
+					sibling: null,
+					effectTag: "placement",
+				};
+			}
+
+			oldFiber && deletions.push(oldFiber);
 		}
 
 		if (oldFiber) {
 			oldFiber = oldFiber.sibling;
 		}
 
-		if (index === 0) {
+		// 当prevChild不存在时需要把指针置回
+		if (index === 0 && !prevChild) {
 			fiber.child = newFiber;
 		} else {
 			prevChild.sibling = newFiber;
 		}
-		prevChild = newFiber;
+		if (newFiber) {
+			prevChild = newFiber;
+		}
 	});
+
+	while (oldFiber) {
+		deletions.push(oldFiber);
+		oldFiber = oldFiber.sibling;
+	}
 }
 
 function updateFunctionComp(fiber) {
+	wipFiber = fiber;
+
 	const children = [fiber.type(fiber.props)];
 	initChild(fiber, children);
 }
