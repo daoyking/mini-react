@@ -90,19 +90,27 @@ function Bar() {
 	);
 }
 
-let count = 1;
+// let count = 1;
 function Counter() {
-	console.log("Counter:click:");
-	const update = React.update();
+	// console.log("Counter:click:");
+	// const update = React.update();
+	const [count, setCount] = React.useState(1);
+	const [str, setStr] = React.useState("hello-");
+
 	function handleClick() {
-		count++;
-		update();
+		console.log("Counter:click:");
+		// count++;
+		// update();
+		setCount((c) => c + 1);
+		// setStr((s) => s + "world-");
+		setStr("hello-");
 	}
 
 	return (
 		<div>
-			<div>{count > 3 ? <Foo></Foo> : <Bar></Bar>}</div>
-			counter: {count}
+			{/* <div>{count > 3 ? <Foo></Foo> : <Bar></Bar>}</div> */}
+			<div>counter: {count}</div>
+			<div>string: {str}</div>
 			<button onClick={handleClick}>Counter add</button>
 		</div>
 	);

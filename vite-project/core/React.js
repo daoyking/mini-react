@@ -52,6 +52,46 @@ function update() {
 	};
 }
 
+let stateHooks;
+let stateHooksIdx;
+function useState(initial) {
+	let currentFiber = wipFiber;
+	const oldHook = currentFiber.alternate?.stateHooks[stateHooksIdx];
+	const stateHook = {
+		state: oldHook ? oldHook.state : initial,
+		queue: oldHook ? oldHook.queue : [],
+	};
+
+	stateHook.queue.forEach((action) => {
+		stateHook.state = action(stateHook.state);
+	});
+
+	stateHook.queue = [];
+
+	stateHooksIdx++;
+	stateHooks.push(stateHook);
+	currentFiber.stateHooks = stateHooks;
+
+	function setState(action) {
+		const eagerState =
+			typeof action === "function" ? action(stateHook.state) : action;
+
+		if (eagerState === stateHook.state) return;
+
+		stateHook.queue.push(
+			typeof action === "function" ? action : () => action
+		);
+
+		wipRoot = {
+			...currentFiber,
+			alternate: currentFiber,
+		};
+		nextWorkOfUnit = wipRoot;
+	}
+
+	return [stateHook.state, setState];
+}
+
 let nextWorkOfUnit = null;
 let wipRoot = null;
 let currentRoot = null;
@@ -210,7 +250,8 @@ function initChild(fiber, children) {
 
 function updateFunctionComp(fiber) {
 	wipFiber = fiber;
-
+	stateHooks = [];
+	stateHooksIdx = 0;
 	const children = [fiber.type(fiber.props)];
 	initChild(fiber, children);
 }
@@ -252,6 +293,7 @@ const React = {
 	createElement,
 	render,
 	update,
+	useState,
 };
 
 export default React;
