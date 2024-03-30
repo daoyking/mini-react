@@ -18,7 +18,6 @@ function createElement(type, props, ...children) {
 			children: children.map((child) => {
 				const isTextNode =
 					typeof child === "string" || typeof child === "number";
-				console.log(child, "child");
 				return isTextNode ? createTextNode(child) : child;
 			}),
 		},
@@ -92,6 +91,18 @@ function useState(initial) {
 	return [stateHook.state, setState];
 }
 
+function useEffect(callback, deps) {
+	const effectHook = {
+		callback,
+		deps,
+		cleanup: undefined,
+	};
+
+	effectHooks.push(effectHook);
+
+	wipFiber.effectHooks = effectHooks;
+}
+
 let nextWorkOfUnit = null;
 let wipRoot = null;
 let currentRoot = null;
@@ -117,11 +128,56 @@ function workLoop(deadline) {
 
 function commitRoot() {
 	deletions.forEach(commitDeletion);
-
 	commitWork(wipRoot.child);
+	commitEffectHooks();
 	currentRoot = wipRoot;
 	wipRoot = null;
 	deletions = [];
+}
+
+let effectHooks;
+function commitEffectHooks() {
+	function run(fiber) {
+		if (!fiber) return;
+		// init
+		if (!fiber.alternate) {
+			fiber.effectHooks?.forEach((hook) => {
+				hook.cleanup = hook.callback();
+			});
+		} else {
+			// update
+			fiber.effectHooks?.forEach((newHook, index) => {
+				if (newHook.deps.length > 0) {
+					const oldEffectHook = fiber.alternate?.effectHooks[index];
+
+					const needUpdate = oldEffectHook?.deps.some(
+						(oldDep, idx) => {
+							return oldDep !== newHook.deps[idx];
+						}
+					);
+
+					needUpdate && (newHook.cleanup = newHook.callback());
+				}
+			});
+		}
+		run(fiber.child);
+		run(fiber.sibling);
+	}
+
+	function runCleanup(fiber) {
+		if (!fiber) return;
+
+		fiber.alternate?.effectHooks?.forEach((hook) => {
+			if (hook.deps.length > 0) {
+				hook.cleanup && hook.cleanup();
+			}
+		});
+
+		runCleanup(fiber.child);
+		runCleanup(fiber.sibling);
+	}
+	runCleanup(wipRoot);
+	run(wipRoot);
 }
 
 function commitDeletion(fiber) {
@@ -252,6 +308,7 @@ function updateFunctionComp(fiber) {
 	wipFiber = fiber;
 	stateHooks = [];
 	stateHooksIdx = 0;
+	effectHooks = [];
 	const children = [fiber.type(fiber.props)];
 	initChild(fiber, children);
 }
@@ -294,6 +351,7 @@ const React = {
 	render,
 	update,
 	useState,
+	useEffect,
 };
 
 export default React;

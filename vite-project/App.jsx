@@ -98,13 +98,28 @@ function Counter() {
 	const [str, setStr] = React.useState("hello-");
 
 	function handleClick() {
-		console.log("Counter:click:");
 		// count++;
 		// update();
 		setCount((c) => c + 1);
 		// setStr((s) => s + "world-");
 		setStr("hello-");
 	}
+
+	React.useEffect(() => {
+		console.log("init");
+
+		return () => {
+			console.log("cleanup init");
+		};
+	}, []);
+
+	React.useEffect(() => {
+		console.log("update", count);
+
+		return () => {
+			console.log("cleanup update");
+		};
+	}, [count]);
 
 	return (
 		<div>
@@ -117,7 +132,6 @@ function Counter() {
 }
 
 function App() {
-	console.log("App");
 	return (
 		<div>
 			hello-mini-react
