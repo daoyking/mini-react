@@ -123,6 +123,10 @@ function workLoop(deadline) {
 	if (!nextWorkOfUnit && wipRoot) {
 		commitRoot();
 	}
+
+	if (nextWorkOfUnit && !wipRoot) {
+		wipRoot = currentRoot;
+	}
 	requestIdleCallback(workLoop);
 }
 
@@ -204,7 +208,8 @@ function commitWork(fiber) {
 
 	switch (fiber.effectTag) {
 		case "update":
-			updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
+			fiber.dom &&
+				updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
 			break;
 		case "placement":
 			fiber.dom && domParent.dom.append(fiber.dom);

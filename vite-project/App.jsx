@@ -1,4 +1,5 @@
 import React from "./core/React.js";
+import { TodoList } from "./views/TodoList.jsx";
 // const App = React.createElement("div", { id: "app" }, "Hello-", "Mini-React!");
 
 // let count = 1;
@@ -138,7 +139,8 @@ function App() {
 			{/* <Countiner></Countiner> */}
 			{/* <Counter num={10}></Counter> */}
 			{/* <Counter num={20}></Counter> */}
-			<Counter></Counter>
+			{/* <Counter></Counter> */}
+			<TodoList></TodoList>
 		</div>
 	);
 }
